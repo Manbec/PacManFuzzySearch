@@ -8,6 +8,7 @@ www.youtube.com/user/deividcoptero  */
 #include <conio.h>
 //#include <stdlib.h>
 #include <stdio.h>
+#include "Point2D.h"
 
 //#include <ctype.h>
 //#pragma hdrstop
@@ -26,6 +27,8 @@ int dir = 0;
 int x = 39, y = 22;
 int anteriorpx, anteriorpy;
 char tecla;
+int pillTimer = -1;
+Point2D pillPosition = Point2D(0,0);
 
 long int puntos = -5;
 int vidas = 3;
@@ -65,21 +68,12 @@ float fuzzyReaction(float distance){
 		return 0.0;
 	}
 }
-class Point2D{
-public:
-	float x, y;
-		Point2D(float x, float y){
-			this->x = x;
-			this->y = y;
-		}
 
-};
 float calculateDistance(Point2D p1, Point2D p2){
 	float diffY = p1.y - p2.y;
 	float diffX = p1.x - p2.x;
 	return sqrt((diffY * diffY) + (diffX * diffX));
 }
-
 
 void gotoxy(int x, int y)  // funcion que posiciona el cursos en la coordenada (x,y)
 {
@@ -125,6 +119,18 @@ char mapa[50][100] = {
 	"                  DXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXC",
 };
 
+Point2D newPillPosition(){
+	int newPillX = rand() % 100;
+	int newPillY = rand() % 50;
+	while (true){
+		if (mapa[newPillY][newPillX] == '_'){
+			return Point2D(newPillX, newPillY);
+		}
+		newPillX = rand() % 100;
+		newPillY = rand() % 50;
+	}
+}
+
 
 void pintar_mapa()// Funcion que pinta el borde de la pantalla de juego
 {
@@ -149,6 +155,10 @@ void pintar_mapa()// Funcion que pinta el borde de la pantalla de juego
 void pacman(int x, int y){
 	setCColor(color[1]);
 	gotoxy(x, y); printf("%c", 2);
+}
+void pill(Point2D point){
+	setCColor(color[6]);
+	gotoxy(point.x, point.y); printf("%c", 3);
 }
 
 void borrar_pacman(int x, int y){
@@ -199,8 +209,12 @@ fantasma::fantasma(int x, int y, int color){
 	fdir = rand() % 4;
 }
 void fantasma::dibujar_fantasma() const{
-
-	setCColor(color[col]);
+	if (pillTimer < 0){
+		setCColor(color[col]);
+	}
+	else{
+		setCColor(color[6]);
+	}
 	gotoxy(_x, _y); printf("%c", 6);
 }
 void fantasma::borrar_fantasma() const{
@@ -211,7 +225,6 @@ void fantasma::choque_pacman(){
 	if (y == _y && x == _x || (fdir == 0 && dir == 1 || fdir == 1 && dir == 0
 		|| fdir == 2 && dir == 3 || fdir == 3 && dir == 2) && (_y == anteriorpy && _x == anteriorpx)){
 
-
 		x = 39;
 		y = 22;
 		dir = 4;
@@ -220,6 +233,12 @@ void fantasma::choque_pacman(){
 	}
 
 
+}
+
+void choquePildora(){
+	if (y == pillPosition.y && x == pillPosition.x){
+		pillTimer = 60;
+	}
 }
 
 void fantasma::mover_fantasma(){
@@ -237,35 +256,56 @@ void fantasma::mover_fantasma(){
 	if (mapa[_y][_x] == '*'){
 		fdir = 0;
 	}
-	boolean movedRight = false;
 	// fuzzy Bonus
 	if ((fuzzyRate > .50 && fuzzyRate <= 1.0) || (fuzzyRate > .25 && rand() % 10 == 3)){
 		for (int i = 0; i < 4; i++){
 			if (i == 2){
 				newDistance = calculateDistance(Point2D((_x+1)*1.0, _y*1.0), Point2D(x*1.0, y*1.0));
 				if(mapa[_y][_x + 1] != 'X' && mapa[_y][_x + 1] != 'A' && mapa[_y][_x + 1] != 'Y' &&
-					mapa[_y][_x + 1] != 'B' && mapa[_y][_x + 1] != 'C' && mapa[_y][_x + 1] != 'D' && newDistance < nearerDistance)       
-				{
-					movedRight = true;
-					//printf("move right");
-					fdir = i;
+					mapa[_y][_x + 1] != 'B' && mapa[_y][_x + 1] != 'C' && mapa[_y][_x + 1] != 'D'){
+					if (pillTimer < 0 && newDistance < nearerDistance){
+						fdir = i;
+					}
+					else if (pillTimer >= 0 && newDistance > nearerDistance){
+						fdir = i;
+					}
 				}
 			}
 			if (i == 3){
 				newDistance = calculateDistance(Point2D((_x - 1)*1.0, _y*1.0), Point2D(x*1.0, y*1.0));
 				if (mapa[_y][_x - 1] != 'X' && mapa[_y][_x - 1] != 'A' && mapa[_y][_x - 1] != 'Y' &&
-					mapa[_y][_x - 1] != 'B' && mapa[_y][_x - 1] != 'C' && mapa[_y][_x - 1] != 'D' && newDistance < nearerDistance) 
+					mapa[_y][_x - 1] != 'B' && mapa[_y][_x - 1] != 'C' && mapa[_y][_x - 1] != 'D'){
+					if (pillTimer < 0 && newDistance < nearerDistance){
 						fdir = i;
+					}
+					else if (pillTimer >= 0 && newDistance > nearerDistance){
+						fdir = i;
+					}
+				}
 			}
 			if (i == 0){
 				newDistance = calculateDistance(Point2D(_x*1.0, (_y-1)*1.0), Point2D(x*1.0, y*1.0));
 				if (mapa[_y - 1][_x] != 'X' && mapa[_y - 1][_x] != 'A' && mapa[_y - 1][_x] != 'Y' &&
-					mapa[_y - 1][_x] != 'B' && mapa[_y - 1][_x] != 'C' && mapa[_y - 1][_x] != 'D' && newDistance < nearerDistance)          fdir = i;
+					mapa[_y - 1][_x] != 'B' && mapa[_y - 1][_x] != 'C' && mapa[_y - 1][_x] != 'D'){
+					if (pillTimer < 0 && newDistance < nearerDistance){
+						fdir = i;
+					}
+					else if (pillTimer >= 0 && newDistance > nearerDistance){
+						fdir = i;
+					}
+				}
 			}
 			if (i == 1){
 				newDistance = calculateDistance(Point2D(_x*1.0, (_y + 1)*1.0), Point2D(x*1.0, y*1.0));
 				if (mapa[_y + 1][_x] != 'X' && mapa[_y + 1][_x] != 'A' && mapa[_y + 1][_x] != 'Y' &&
-					mapa[_y + 1][_x] != 'B' && mapa[_y + 1][_x] != 'C' && mapa[_y + 1][_x] != 'D' && newDistance < nearerDistance)          fdir = i;
+					mapa[_y + 1][_x] != 'B' && mapa[_y + 1][_x] != 'C' && mapa[_y + 1][_x] != 'D'){
+					if (pillTimer < 0 && newDistance < nearerDistance){
+						fdir = i;
+					}
+					else if (pillTimer >= 0 && newDistance > nearerDistance){
+						fdir = i;
+					}
+				}
 			}
 		}
 	}
@@ -294,56 +334,89 @@ void fantasma::mover_fantasma(){
 				_y++;
 			else fdir = rand() % 4;
 		}
-	if (fuzzyRate < .50 || (rand() % 10 == 3 && fuzzyRate <= .75)){
-		if (fuzzyRate >.50 || (fuzzyRate > .25 && rand() % 10 == 3)){
-			for (int i = 0; i < 4; i++){
-				if (i == 2){
-					newDistance = calculateDistance(Point2D((_x + 1)*1.0, _y*1.0), Point2D(x*1.0, y*1.0));
+		if (fuzzyRate < .50 || (rand() % 10 == 3 && fuzzyRate <= .75)){
+			if (fuzzyRate >.50 || (fuzzyRate > .25 && rand() % 10 == 3)){
+				for (int i = 0; i < 4; i++){
+					if (i == 2){
+						newDistance = calculateDistance(Point2D((_x + 1)*1.0, _y*1.0), Point2D(x*1.0, y*1.0));
+						if (mapa[_y][_x + 1] != 'X' && mapa[_y][_x + 1] != 'A' && mapa[_y][_x + 1] != 'Y' &&
+							mapa[_y][_x + 1] != 'B' && mapa[_y][_x + 1] != 'C' && mapa[_y][_x + 1] != 'D'){
+							if (pillTimer < 0 && newDistance < nearerDistance){
+								fdir = i;
+							}
+							else if (pillTimer > 0 && newDistance > nearerDistance){
+								fdir = i;
+							}
+						}
+						else{
+							fdir = rand() % 4;
+						}
+					}
+					if (i == 3){
+						newDistance = calculateDistance(Point2D((_x - 1)*1.0, _y*1.0), Point2D(x*1.0, y*1.0));
+						if (mapa[_y][_x - 1] != 'X' && mapa[_y][_x - 1] != 'A' && mapa[_y][_x - 1] != 'Y' &&
+							mapa[_y][_x - 1] != 'B' && mapa[_y][_x - 1] != 'C' && mapa[_y][_x - 1] != 'D'){
+							if (pillTimer < 0 && newDistance < nearerDistance){
+								fdir = i;
+							}
+							else if (pillTimer >= 0 && newDistance > nearerDistance){
+								fdir = i;
+							}
+						}
+						else{
+							fdir = rand() % 4;
+						}
+					}
+					if (i == 0){
+						newDistance = calculateDistance(Point2D(_x*1.0, (_y - 1)*1.0), Point2D(x*1.0, y*1.0));
+						if (mapa[_y - 1][_x] != 'X' && mapa[_y - 1][_x] != 'A' && mapa[_y - 1][_x] != 'Y' &&
+							mapa[_y - 1][_x] != 'B' && mapa[_y - 1][_x] != 'C' && mapa[_y - 1][_x] != 'D'){
+							if (pillTimer < 0 && newDistance < nearerDistance){
+								fdir = i;
+							}
+							else if (pillTimer >= 0 && newDistance > nearerDistance){
+								fdir = i;
+							}
+						}
+						else{
+							fdir = rand() % 4;
+						}
+					}
+					if (i == 1){
+						newDistance = calculateDistance(Point2D(_x*1.0, (_y + 1)*1.0), Point2D(x*1.0, y*1.0));
+						if (mapa[_y + 1][_x] != 'X' && mapa[_y + 1][_x] != 'A' && mapa[_y + 1][_x] != 'Y' &&
+							mapa[_y + 1][_x] != 'B' && mapa[_y + 1][_x] != 'C' && mapa[_y + 1][_x] != 'D') {
+							if (pillTimer < 0 && newDistance < nearerDistance){
+								fdir = i;
+							}
+							else if (pillTimer >= 0 && newDistance > nearerDistance){
+								fdir = i;
+							}
+						}
+					}
+				}
+				if (fdir == 2){
 					if (mapa[_y][_x + 1] != 'X' && mapa[_y][_x + 1] != 'A' && mapa[_y][_x + 1] != 'Y' &&
-						mapa[_y][_x + 1] != 'B' && mapa[_y][_x + 1] != 'C' && mapa[_y][_x + 1] != 'D' && newDistance < nearerDistance)         fdir = i;
+						mapa[_y][_x + 1] != 'B' && mapa[_y][_x + 1] != 'C' && mapa[_y][_x + 1] != 'D')         _x++;
 					else fdir = rand() % 4;
 				}
-				if (i == 3){
-					newDistance = calculateDistance(Point2D((_x - 1)*1.0, _y*1.0), Point2D(x*1.0, y*1.0));
+				if (fdir == 3){
 					if (mapa[_y][_x - 1] != 'X' && mapa[_y][_x - 1] != 'A' && mapa[_y][_x - 1] != 'Y' &&
-						mapa[_y][_x - 1] != 'B' && mapa[_y][_x - 1] != 'C' && mapa[_y][_x - 1] != 'D' && newDistance < nearerDistance)         fdir = i;
+						mapa[_y][_x - 1] != 'B' && mapa[_y][_x - 1] != 'C' && mapa[_y][_x - 1] != 'D')          _x--;
 					else fdir = rand() % 4;
 				}
-				if (i == 0){
-					newDistance = calculateDistance(Point2D(_x*1.0, (_y - 1)*1.0), Point2D(x*1.0, y*1.0));
+				if (fdir == 0){
 					if (mapa[_y - 1][_x] != 'X' && mapa[_y - 1][_x] != 'A' && mapa[_y - 1][_x] != 'Y' &&
-						mapa[_y - 1][_x] != 'B' && mapa[_y - 1][_x] != 'C' && mapa[_y - 1][_x] != 'D' && newDistance < nearerDistance)          fdir = i;
+						mapa[_y - 1][_x] != 'B' && mapa[_y - 1][_x] != 'C' && mapa[_y - 1][_x] != 'D')           _y--;
 					else fdir = rand() % 4;
 				}
-				if (i == 1){
-					newDistance = calculateDistance(Point2D(_x*1.0, (_y + 1)*1.0), Point2D(x*1.0, y*1.0));
+				if (fdir == 1){
 					if (mapa[_y + 1][_x] != 'X' && mapa[_y + 1][_x] != 'A' && mapa[_y + 1][_x] != 'Y' &&
-						mapa[_y + 1][_x] != 'B' && mapa[_y + 1][_x] != 'C' && mapa[_y + 1][_x] != 'D' && newDistance < nearerDistance)         fdir = i;
+						mapa[_y + 1][_x] != 'B' && mapa[_y + 1][_x] != 'C' && mapa[_y + 1][_x] != 'D')                _y++;
+					else fdir = rand() % 4;
 				}
 			}
 		}
-		if (fdir == 2){
-			if (mapa[_y][_x + 1] != 'X' && mapa[_y][_x + 1] != 'A' && mapa[_y][_x + 1] != 'Y' &&
-				mapa[_y][_x + 1] != 'B' && mapa[_y][_x + 1] != 'C' && mapa[_y][_x + 1] != 'D')         _x++;
-			else fdir = rand() % 4;
-		}
-		if (fdir == 3){
-			if (mapa[_y][_x - 1] != 'X' && mapa[_y][_x - 1] != 'A' && mapa[_y][_x - 1] != 'Y' &&
-				mapa[_y][_x - 1] != 'B' && mapa[_y][_x - 1] != 'C' && mapa[_y][_x - 1] != 'D')          _x--;
-			else fdir = rand() % 4;
-		}
-		if (fdir == 0){
-			if (mapa[_y - 1][_x] != 'X' && mapa[_y - 1][_x] != 'A' && mapa[_y - 1][_x] != 'Y' &&
-				mapa[_y - 1][_x] != 'B' && mapa[_y - 1][_x] != 'C' && mapa[_y - 1][_x] != 'D')           _y--;
-			else fdir = rand() % 4;
-		}
-		if (fdir == 1){
-			if (mapa[_y + 1][_x] != 'X' && mapa[_y + 1][_x] != 'A' && mapa[_y + 1][_x] != 'Y' &&
-				mapa[_y + 1][_x] != 'B' && mapa[_y + 1][_x] != 'C' && mapa[_y + 1][_x] != 'D')                _y++;
-			else fdir = rand() % 4;
-		}
-	}
-
 	if (mapa[boly][bolx] == '_') { setCColor(color[1]); gotoxy(bolx, boly); printf("%c", 250); }
 
 	// rutina atajo
@@ -359,6 +432,26 @@ void marcador(){
 	gotoxy(5, 6); printf("    ");
 	setCColor(color[6]);
 	gotoxy(5, 6); printf("%ld", puntos);
+
+	if (pillTimer > 0){
+		gotoxy(5, 10); printf("PODER");
+
+		gotoxy(5, 11); 
+		if (pillTimer > 9){
+			printf("%d", pillTimer);
+		}
+		else{
+			printf("%d ", pillTimer);
+		}
+	}
+	else if (pillTimer == 0){
+		pillPosition = newPillPosition();
+		pillTimer = -1;
+	}
+	else{
+		gotoxy(5, 10); printf("     ");
+		gotoxy(5, 11); printf("  ");
+	}
 
 	setCColor(color[1]);
 	gotoxy(5, 25); printf("VIDAS");
@@ -379,7 +472,7 @@ void marcador(){
 int main(){
 
 
-
+	pillPosition = newPillPosition();
 	fantasma A(41, 14, 2);
 	fantasma B(43, 14, 3);
 	fantasma C(40, 14, 4);
@@ -428,6 +521,13 @@ int main(){
 		C.mover_fantasma();
 		D.mover_fantasma();
 		pacman(x, y);
+		choquePildora();
+		if (pillTimer < 0){
+			pill(pillPosition);
+		}
+		else{
+				pillTimer--;
+		}
 		Sleep(55);
 
 		//pacman(x,y);
